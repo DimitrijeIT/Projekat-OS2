@@ -3,8 +3,10 @@
 #include "slab.h"
 #include "power2.h"
 #include "cache.h"
+#include "buddy.h"
 #define EOB -1
 
+extern buddy_s* BUDDY;
 
 void slab_heder_init(void* space, kmem_cache_s* cache) {
 
@@ -69,7 +71,10 @@ void* slab_alloc(slab_header* slab) {
 
 void put_obj(void *obj) {
 	//Find beginnning of block
-	void * blck = (void*) ADDR_TO_BLOCK(obj);
+	//void * blck = (void*) ADDR_TO_BLOCK(obj);
+
+	void * blck = (void*) (((size_t)obj)&(~((size_t)BLOCK_SIZE - 1)));
+
 	slab_header * slab = (slab_header*)blck;
 
 	//Index in slab list 
@@ -109,14 +114,4 @@ void updateLists(slab_header *from, slab_header *to, slab_header *slab) {
 	if (to != nullptr)to->priv = slab;
 	to = slab;
 	slab->priv = nullptr;
-/*
-if (slab->next) slab->next->priv = slab->priv;
-if (slab->priv) slab->priv->next = slab->next;
-if (slab->myCache->slabs_partial == slab) slab->myCache->slabs_partial = slab->next;
-
-slab->next = slab->myCache->slab_free;
-if (slab->myCache->slab_free != nullptr)slab->myCache->slab_free->priv = slab;
-slab->myCache->slab_free = slab;
-slab->priv = nullptr;
-*/
 }

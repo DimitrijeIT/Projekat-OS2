@@ -1,7 +1,7 @@
 #pragma once
 
 #include "cache.h"
-#include <mutex>
+#include <windows.h>
 
 #define N (13)
 
@@ -16,11 +16,9 @@ struct buddy_s {
 	kmem_cache_s* cacheHead;
 	kmem_cache_s* sizeNCaches[N];
 
-	std::mutex mutexLock;
+	HANDLE mutexLock;
+
 };
-
-static buddy_s* BUDDY;
-
 
 void buddy_init(void *space, int block_num);
 

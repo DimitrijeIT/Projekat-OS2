@@ -41,5 +41,11 @@
     <ClCompile Include="slab_header.cpp">
       <Filter>Resource Files</Filter>
     </ClCompile>
+    <ClCompile Include="cache.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="power2.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

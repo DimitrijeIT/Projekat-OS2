@@ -23,3 +23,4 @@ struct slab_header
 void slab_heder_init(void*, kmem_cache_s*);
 void* slab_alloc(slab_header*);
 void put_obj(void *obj);
+void updateLists(slab_header *from, slab_header *to, slab_header *slab);

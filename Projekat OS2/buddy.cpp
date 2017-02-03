@@ -3,7 +3,7 @@
 #include "power2.h"
 #include "slab.h"
 
-static buddy_s* BUDDY = nullptr;
+buddy_s* BUDDY = nullptr;
 
 void buddy_init(void *space, int block_num) {
 
@@ -12,7 +12,7 @@ void buddy_init(void *space, int block_num) {
 		exit(1);
 	}
 
-	BUDDY = (buddy_s*)space;
+	BUDDY = (buddy_s *) space;
 
 	int numOfBlckforBuddy = (sizeof(buddy_s) + sizeof(int) * roundDownpower2(block_num))/BLOCK_SIZE;
 	if (numOfBlckforBuddy == 0) numOfBlckforBuddy = 1;
@@ -22,6 +22,8 @@ void buddy_init(void *space, int block_num) {
 	BUDDY->blocks = (int*)((char*)space + sizeof(buddy_s));
 	BUDDY->myMemory = (char*)space + BLOCK_SIZE * numOfBlckforBuddy;
 	BUDDY->cacheHead = nullptr;
+
+	BUDDY->mutexLock = CreateMutex(NULL, false, NULL);
 
 
 	//Init blocks list
@@ -39,6 +41,8 @@ void buddy_init(void *space, int block_num) {
 void* buddy_alloc(int size) {
 	int index = roundUPpower2(size);
 	if (index > BUDDY->maxPower2) return nullptr;
+
+	WaitForSingleObject(BUDDY->mutexLock, INFINITE);
 
 	int block = BUDDY->blocks[index];
 
@@ -65,14 +69,17 @@ void* buddy_alloc(int size) {
 			BUDDY->blocks[i + index] = *(int*)blockAdr;
 		
 			int oldNum = BUDDY->blocks[i + index - 1];
-			//In smaller list update pointer to current block
-			BUDDY->blocks[i + index - 1] = blockNum;
 
-			int newSize = (i + index) / 2;
+			//int newSize = (i + index) / 2;
+			int newIndex = i + index - 1;
+
+			//In smaller list update pointer to current block
+			BUDDY->blocks[newIndex] = blockNum;
+		
 			//Update point in block to point to new buddy
-			*((int*)blockAdr) = IndexOfBlock((char*)blockAdr + BLOCK_SIZE * newSize);
+			*((int*)blockAdr) = IndexOfBlock((char*)blockAdr + BLOCK_SIZE * toPower2(newIndex));
 			//New buddy to point to new in list
-			*((int*)(char*)blockAdr + BLOCK_SIZE * newSize) = oldNum;
+			*((int*)(char*)blockAdr + BLOCK_SIZE * toPower2(newIndex)) = oldNum;
 		}
 		//New block for alloc
 		block = BUDDY->blocks[index];
@@ -80,6 +87,9 @@ void* buddy_alloc(int size) {
 
 	void * newBlock = blockByIndex(block);
 	BUDDY->blocks[index] = *(int*)newBlock;
+
+	ReleaseMutex(BUDDY->mutexLock);
+	 
 	return newBlock;
 }
 
@@ -114,34 +124,31 @@ void buddy_dealloc(void *adr, int size_) {
 	int cur_num = old;
 	int cur_index = index;
 	int prev_num = -1;
-	
-	void * adress = adr;
-	int chunck_num = old;
 
-	void * block = nullptr;
+	void * adress = adr;
+	int chunck_num = num;
+
+	void * cur_block_adress = nullptr;
 	bool again = true;
 	while (again) {
-
-
-
-		//Add: Update CURRENT LIST, Delete 2 blocks from it
-
 		//Go througih one list
 		while (cur_num != -1) {
 			//Try to find buddy
-			block = blockByIndex(cur_num);
-			if ((char*)adress + cur_index * BLOCK_SIZE == block) {
+			cur_block_adress = blockByIndex(cur_num);
+			if ((char*)adress + toPower2(cur_index) * BLOCK_SIZE == cur_block_adress) {
 				break;
 			}
-			if ((char*)block + cur_index * BLOCK_SIZE == adress) {
+			if ((char*)cur_block_adress + toPower2(cur_index) * BLOCK_SIZE == adress) {
 				//Swap places
-				*(int*)adress = -1;
-				adress = block;
+				*(int*)adress = -1; //Not nessesery 
+
+				adress = cur_block_adress;
 				chunck_num = cur_num;
 				break;
 			}
+			//Go to next in list 
 			prev_num = cur_num;
-			cur_num = *(int*)block;
+			cur_num = *(int*)cur_block_adress;
 		}
 
 		if (cur_num == -1) again = false;
@@ -150,6 +157,8 @@ void buddy_dealloc(void *adr, int size_) {
 			//Update current list 
 			if (prev_num != -1) {
 				*(int*)blockByIndex(prev_num) = *(int*)blockByIndex(cur_num);
+				//Must remove first in list. It is the one we just inserted
+				BUDDY->blocks[cur_index] = *(int*)blockByIndex(BUDDY->blocks[cur_index]);
 			}
 			else {
 				BUDDY->blocks[cur_index] = *(int*)blockByIndex(cur_num);
@@ -160,7 +169,9 @@ void buddy_dealloc(void *adr, int size_) {
 			//Put in list above dealocating chunck 
 			BUDDY->blocks[cur_index + 1] = chunck_num;
 			*(int *)adress = new_cur;
-			cur_index <<= 1;
+
+			//Update for next iteration 
+			cur_index++;
 			cur_num = new_cur;
 		}
 

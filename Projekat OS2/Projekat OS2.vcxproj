@@ -154,6 +154,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="buddy.cpp" />
+    <ClCompile Include="cache.cpp" />
+    <ClCompile Include="power2.cpp" />
     <ClCompile Include="slab.cpp" />
     <ClCompile Include="slab_header.cpp" />
   </ItemGroup>
