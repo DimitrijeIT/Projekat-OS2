@@ -5,12 +5,15 @@
 
 #define N (13)
 
+typedef unsigned int blocksP;
+#define buddy_blocks(blocks) \
+       ((blocksP *)(((buddy_s*)blocks)+1))
 
 struct buddy_s {
 
 	int numOfBlocks;
 	int maxPower2;
-	int *blocks;
+//	blocksP blocks;
 	void *myMemory;
 
 	kmem_cache_s* cacheHead;

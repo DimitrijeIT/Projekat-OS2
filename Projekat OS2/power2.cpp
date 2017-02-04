@@ -2,6 +2,7 @@
 #include <math.h>
 int roundUPpower2(int x) {
 	if (x == 0) return 0;
+	if (x == 1) return 0;
 	int a = (int)log2(x);
 	return (x % 2 == 0) ? a : a + 1;
 }

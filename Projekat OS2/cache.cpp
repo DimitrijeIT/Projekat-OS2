@@ -5,7 +5,6 @@
 #include "power2.h"
 #include <iostream>
 
-
 #define MAX_SIZE 17
 #define MIN_SIZE 5
 
@@ -156,8 +155,20 @@ void *small_buffer(size_t size) {
 	}
 
 	//Allocate new slab for that size
-	void * ret = kmem_cache_alloc(BUDDY->sizeNCaches[pow - MIN_SIZE]);
+	void * ret = cache_alloc(BUDDY->sizeNCaches[pow - MIN_SIZE]);
 	return ret;
+}
+
+void small_buffer_destroy(const void *objp) {
+
+	int error = put_obj_const(objp);
+	if (error) {
+		return;
+	}
+	void * blck = (void*)(((size_t)objp)&(~((size_t)BLOCK_SIZE - 1)));
+	slab_header * slab = (slab_header*)blck;
+
+	slab_destroy(slab);
 }
 
 void updateStats(kmem_cache_s* cache, int totalAloc, int  inUse, int numSlabs) {

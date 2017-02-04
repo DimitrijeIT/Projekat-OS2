@@ -146,6 +146,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\Javni Test OS2\test.h" />
     <ClInclude Include="buddy.h" />
     <ClInclude Include="cache.h" />
     <ClInclude Include="power2.h" />
@@ -153,6 +154,8 @@
     <ClInclude Include="slab_header.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\Javni Test OS2\main.cpp" />
+    <ClCompile Include="..\..\..\Javni Test OS2\test.cpp" />
     <ClCompile Include="buddy.cpp" />
     <ClCompile Include="cache.cpp" />
     <ClCompile Include="power2.cpp" />

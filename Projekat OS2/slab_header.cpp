@@ -2,6 +2,7 @@
 #include "slab_header.h"
 #include "slab.h"
 #include "cache.h"
+#include <iostream>
 
 #define EOB -1
 #define ALLOCATED -2
@@ -82,7 +83,10 @@ int put_obj(void *obj) {
 	//Index in slab list 
 	int index = ((char*)obj - (char*)slab->mem) / slab->myCache->objectSize;
 
-	if (slab_buffer(slab)[index] != ALLOCATED) -1;
+	if (slab_buffer(slab)[index] != ALLOCATED) {
+		std::cout << "Object is not allocated";
+		return -1;
+	}
 
 	//Update buffer
 	slab_buffer(slab)[index] = slab->free;
@@ -96,6 +100,36 @@ int put_obj(void *obj) {
 	if (slab->myCache->ctor != nullptr) {
 		slab->myCache->ctor(obj);
 	}
+
+	//Update lists
+	int old = slab->objInUse;
+	slab->objInUse--;
+	if (slab->objInUse == 0) {
+		updateLists(slab->myCache->slabs_partial, slab->myCache->slab_free, slab);
+	}
+	else if (old == slab->myCache->numObjInSlot) {
+		updateLists(slab->myCache->slab_full, slab->myCache->slabs_partial, slab);
+	}
+	updateStats(slab->myCache, 0, -1, 0);
+	return 0;
+}
+
+int put_obj_const (const void *obj) {
+	//Find beginnning of block
+	void * blck = (void*)(((size_t)obj)&(~((size_t)BLOCK_SIZE - 1)));
+
+	slab_header * slab = (slab_header*)blck;
+
+	//Index in slab list 
+	int index = ((char*)obj - (char*)slab->mem) / slab->myCache->objectSize;
+
+	if (slab_buffer(slab)[index] != ALLOCATED) {
+		std::cout << "Object is not allocated";
+		return -1;
+	}
+	//Update buffer
+	slab_buffer(slab)[index] = slab->free;
+	slab->free = index;
 
 	//Update lists
 	int old = slab->objInUse;
@@ -151,3 +185,4 @@ void slab_destroy(slab_header* slab) {
 	slab->objInUse = 0;
 	slab->myCache = nullptr;
 }
+

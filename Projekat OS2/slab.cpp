@@ -4,6 +4,8 @@
 #include "slab_header.h"
 #include <iostream>
 
+extern buddy_s* BUDDY;
+
 void kmem_init(void *space, int block_num) {
 	buddy_init(space, block_num);
 }
@@ -25,7 +27,9 @@ void *kmem_cache_alloc(kmem_cache_t *cachep) {
 }
 
 void kmem_cache_free(kmem_cache_t *cachep, void *objp) {
+	WaitForSingleObject(cachep->mutexLock, INFINITE);
 	put_obj(objp);
+	ReleaseMutex(cachep->mutexLock);
 }
 
 int kmem_cache_shrink(kmem_cache_t *cachep) {
@@ -45,7 +49,16 @@ void kmem_cache_destroy(kmem_cache_t *cachep) {
 }
 
 void *kmalloc(size_t size) {
-	return small_buffer(size);
+	WaitForSingleObject(BUDDY->mutexLock, INFINITE);
+	void * ret =  small_buffer(size);
+	ReleaseMutex(BUDDY->mutexLock);
+	return ret;
+}
+
+void kfree(const void *objp) {
+	WaitForSingleObject(BUDDY->mutexLock, INFINITE);
+	small_buffer_destroy(objp);
+	ReleaseMutex(BUDDY->mutexLock);
 }
 
 void kmem_cache_info(kmem_cache_t *cachep){
@@ -79,3 +92,5 @@ int kmem_cache_error(kmem_cache_t *cachep) {
 	}
 	return cachep->error_code;
 }
+
+

@@ -46,6 +46,7 @@ kmem_cache_t *cache_create(const char *name, size_t size,
 void *cache_alloc(kmem_cache_t *cachep);
 int cache_shrink(kmem_cache_t *cachep);
 void *small_buffer(size_t size);
+void small_buffer_destroy(const void *objp);
 
 void updateStats(kmem_cache_s* cache, int totalAloc, int  inUse, int numSlabs);
 void allocSlab(kmem_cache_s* cache);

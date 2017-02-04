@@ -24,5 +24,6 @@ void slab_heder_init(void*, kmem_cache_s*);
 void* slab_alloc(slab_header*);
 //Put back one object
 int put_obj(void *obj);
+int put_obj_const(const void *obj);
 void updateLists(slab_header *from, slab_header *to, slab_header *slab);
 void slab_destroy(slab_header* slab);

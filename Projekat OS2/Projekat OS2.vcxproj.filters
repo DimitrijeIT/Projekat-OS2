@@ -30,6 +30,9 @@
     <ClInclude Include="slab_header.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\Javni Test OS2\test.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="buddy.cpp">
@@ -45,6 +48,12 @@
       <Filter>Resource Files</Filter>
     </ClCompile>
     <ClCompile Include="power2.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Javni Test OS2\test.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Javni Test OS2\main.cpp">
       <Filter>Resource Files</Filter>
     </ClCompile>
   </ItemGroup>
