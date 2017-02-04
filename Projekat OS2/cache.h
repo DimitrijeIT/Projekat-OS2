@@ -4,8 +4,7 @@
 #define NAME_LEN 20
 
 struct slab_header;
-enum Errors { NoErros, BuddyNoSpace, CacheNotEmpry };
-
+enum Errors { NoErros, BuddyNoSpace, CacheNotEmpry , NoCache};
 typedef struct kmem_cache_s {
 	kmem_cache_s * next;
 	kmem_cache_s * priv;

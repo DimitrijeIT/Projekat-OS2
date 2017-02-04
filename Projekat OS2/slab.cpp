@@ -57,3 +57,25 @@ void kmem_cache_info(kmem_cache_t *cachep){
 	ReleaseMutex(cachep->mutexLock);
 }
 
+int kmem_cache_error(kmem_cache_t *cachep) {
+	if (cachep == nullptr) {
+		std::cout << "cachep: is not nullptr";
+		return NoCache;
+	}
+
+	switch (cachep->error_code) {
+		case NoErros: 
+			std::cout << "No errors";
+			break;
+		case BuddyNoSpace: 
+			std::cout << "Buddy can not find enought space";
+			break;
+		case CacheNotEmpry:
+			std::cout << "User has not freed all objects ";
+			break;
+		default:
+			std::cout << "Unknown error";
+			break;
+	}
+	return cachep->error_code;
+}

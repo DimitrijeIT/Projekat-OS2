@@ -26,3 +26,4 @@ void* blockByIndex(int);
 int IndexOfBlock(void*);
 void* buddy_alloc(int);
 void buddy_dealloc(void *adr, int size_);
+void destroyBuddy();

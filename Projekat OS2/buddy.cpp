@@ -113,6 +113,8 @@ void buddy_dealloc(void *adr, int size_) {
 	int index = roundUPpower2(size_);
 	if (index < 0 || index> BUDDY->maxPower2) return;
 
+	WaitForSingleObject(BUDDY->mutexLock, INFINITE);
+
 	int old = BUDDY->blocks[index];
 	
 	//Update lists
@@ -176,4 +178,25 @@ void buddy_dealloc(void *adr, int size_) {
 		}
 
 	}
+
+	ReleaseMutex(BUDDY->mutexLock);
+}
+
+void destroyBuddy() {
+	if (BUDDY != nullptr) {
+		BUDDY->blocks = nullptr;
+		BUDDY->cacheHead = nullptr;
+		BUDDY->myMemory = nullptr;
+
+		BUDDY->maxPower2 = 0;
+		BUDDY->numOfBlocks = 0;
+
+		for (int i = 0; i < N; i++) {
+			BUDDY->sizeNCaches[i] = nullptr;
+		}
+
+		CloseHandle(BUDDY->mutexLock;
+	}
+
+	BUDDY = nullptr;
 }
