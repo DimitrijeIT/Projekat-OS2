@@ -64,7 +64,7 @@ void kfree(const void *objp) {
 void kmem_cache_info(kmem_cache_t *cachep){
 
 	WaitForSingleObject(cachep->mutexLock, INFINITE);
-	std::cout << " Name :" << cachep->name << "\n Object Size : " << cachep->objectSize << "\n Cache size in blocks : "
+	std::cout << "\n \n Name :" << cachep->name << "\n Object Size : " << cachep->objectSize << "\n Cache size in blocks : "
 		<< cachep->sizeInBlocks << "\n Num of slabs : " << cachep->numSlabs << "\n Num of object per slab : "
 		<< cachep->numObjInSlot << "\n Procenat popunjenosti : " << cachep->percentage;
 	ReleaseMutex(cachep->mutexLock);

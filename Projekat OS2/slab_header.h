@@ -5,6 +5,8 @@ typedef unsigned int buffer;
 
 struct kmem_cache_s;
 
+enum slab_list { FREE, PARTIAL, FULL, NO };
+
 struct slab_header
 {
 	slab_header *next, *priv;
@@ -25,5 +27,6 @@ void* slab_alloc(slab_header*);
 //Put back one object
 int put_obj(void *obj);
 int put_obj_const(const void *obj);
-void updateLists(slab_header *from, slab_header *to, slab_header *slab);
+//void updateLists(slab_header *from, slab_header *to, slab_header *slab);
+void updateLists(slab_list FROM, slab_list TO, slab_header *slab);
 void slab_destroy(slab_header* slab);

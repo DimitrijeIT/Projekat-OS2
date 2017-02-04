@@ -38,7 +38,7 @@ void slab_heder_init(void* space, kmem_cache_s* cache) {
 	slab->objInUse = 0;
 
 	//Add to free list of slabs
-	updateLists(nullptr, slab->myCache->slab_free, slab);
+	updateLists(NO, FREE, slab);
 
 	updateStats(slab->myCache, slab->myCache->numObjInSlot, 0, 1);
 	
@@ -62,10 +62,10 @@ void* slab_alloc(slab_header* slab) {
 	slab->objInUse++;
 
 	if (old == 0) {
-		updateLists(slab->myCache->slab_free, slab->myCache->slabs_partial, slab);
+		updateLists(FREE, PARTIAL, slab);
 	}
 	else if (slab->objInUse == slab->myCache->numObjInSlot) {
-		updateLists(slab->myCache->slabs_partial, slab->myCache->slab_full, slab);
+		updateLists(PARTIAL, FULL, slab);
 	}
 
 	slab->myCache->growing = true;
@@ -105,10 +105,10 @@ int put_obj(void *obj) {
 	int old = slab->objInUse;
 	slab->objInUse--;
 	if (slab->objInUse == 0) {
-		updateLists(slab->myCache->slabs_partial, slab->myCache->slab_free, slab);
+		updateLists(PARTIAL, FREE, slab);
 	}
 	else if (old == slab->myCache->numObjInSlot) {
-		updateLists(slab->myCache->slab_full, slab->myCache->slabs_partial, slab);
+		updateLists(FULL,PARTIAL, slab);
 	}
 	updateStats(slab->myCache, 0, -1, 0);
 	return 0;
@@ -135,25 +135,65 @@ int put_obj_const (const void *obj) {
 	int old = slab->objInUse;
 	slab->objInUse--;
 	if (slab->objInUse == 0) {
-		updateLists(slab->myCache->slabs_partial, slab->myCache->slab_free, slab);
+		updateLists(PARTIAL, FREE, slab);
 	}
 	else if (old == slab->myCache->numObjInSlot) {
-		updateLists(slab->myCache->slab_full, slab->myCache->slabs_partial, slab);
+		updateLists(FULL, PARTIAL, slab);
 	}
 	updateStats(slab->myCache, 0, -1, 0);
 	return 0;
 }
-
-void updateLists(slab_header *from, slab_header *to, slab_header *slab) {
+/*void updateLists(slab_header *from, slab_header *to, slab_header *slab) {
 	if (slab->next) slab->next->priv = slab->priv;
 	if (slab->priv) slab->priv->next = slab->next;
 	if (from != nullptr && from == slab) from = slab->next;
 
 	slab->next = to;
-	if (to != nullptr) {
-		to->priv = slab;
-		to = slab;
+	if (to != nullptr) to->priv = slab;
+	to = slab;
+	slab->priv = nullptr;
+}
+*/
+void updateLists(slab_list FROM, slab_list TO, slab_header *slab) {
+	if (slab->next) slab->next->priv = slab->priv;
+	if (slab->priv) slab->priv->next = slab->next;
+
+	kmem_cache_s* cache = slab->myCache;
+
+	switch (FROM)
+	{
+	case FREE:
+		if (cache->slab_free == slab) cache->slab_free = slab->next;
+		break;
+	case PARTIAL:
+		if (cache->slabs_partial == slab) cache->slabs_partial = slab->next;
+		break;
+	case FULL:
+		if (cache->slab_full == slab) cache->slab_full = slab->next;
+		break;
 	}
+
+	slab_header *to = nullptr;
+	switch (TO)
+	{
+	case FREE:
+		if (cache->slab_free) cache->slab_free->priv = slab;
+		to = cache->slab_free;
+		cache->slab_free = slab;
+		break;
+	case PARTIAL:
+		if (cache->slabs_partial)cache->slabs_partial->priv = slab;
+		to = cache->slabs_partial;
+		cache->slabs_partial = slab;
+		break;
+	case FULL:
+		if (cache->slab_full) cache->slab_full->priv = slab;
+		to = cache->slab_full;
+		cache->slab_full = slab;
+		break;
+	}
+
+	slab->next = to;
 	slab->priv = nullptr;
 }
 
@@ -162,13 +202,13 @@ void slab_destroy(slab_header* slab) {
 
 	//Remove from cache list
 	if (slab->objInUse == 0) {
-		updateLists(slab->myCache->slab_free, nullptr, slab);
+		updateLists(FREE, NO, slab);
 	}
 	else if (slab->objInUse == slab->myCache->numObjInSlot) {
-		updateLists(slab->myCache->slab_full, nullptr, slab);
+		updateLists(FULL, NO, slab);
 	}
 	else {
-		updateLists(slab->myCache->slabs_partial, nullptr, slab);
+		updateLists(PARTIAL, NO, slab);
 	}
 
 	//Call destuctor
