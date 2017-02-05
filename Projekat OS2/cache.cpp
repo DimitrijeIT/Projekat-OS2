@@ -24,7 +24,7 @@ kmem_cache_t *cache_create(const char *name, size_t size,
 	int leftOver = 0; //Space that is unused
 	int blocksForSlab = 1; //At list one is needed 
 	int obj_in_slab = 1; //At list one object per slab
-	if (size < availbale_space) {
+	if (size <= availbale_space) {
 		//At list one object can fit in one BLOCK 
 		while (obj_in_slab * sizeof(buffer) + obj_in_slab*size < availbale_space) {
 			//obj_in_slab * sizeof(buffer) - for list of object in slab 
@@ -37,7 +37,7 @@ kmem_cache_t *cache_create(const char *name, size_t size,
 	}
 	else {
 		//Obj to big to fit in one block 
-		while (size > availbale_space)
+		while (size >= availbale_space)
 		{
 			availbale_space += BLOCK_SIZE;
 			blocksForSlab++;
@@ -73,6 +73,8 @@ kmem_cache_t *cache_create(const char *name, size_t size,
 	cache_s->blockForSlab = blocksForSlab;
 	cache_s->nextOff = 0;
 	cache_s->offset = leftOver;
+
+	cache_s->numBlcoksForCache = numOfBlocksForChacheStruct;
 
 	cache_s->mutexLock = CreateMutex(NULL, false, NULL);
 
@@ -153,6 +155,9 @@ void *small_buffer(size_t size) {
 		BUDDY->sizeNCaches[pow - MIN_SIZE] = cache_create(name, pow * BLOCK_SIZE, nullptr, nullptr);
 	}
 
+	std::cout << " Small buffer, blokova za slab" << BUDDY->sizeNCaches[pow - MIN_SIZE]->blockForSlab;
+	std::cout << " Trazi blokova " << pow;
+	
 	//Allocate new slab for that size
 	void * ret = cache_alloc(BUDDY->sizeNCaches[pow - MIN_SIZE]);
 	return ret;
@@ -162,12 +167,32 @@ void small_buffer_destroy(const void *objp) {
 
 	int error = put_obj_const(objp);
 	if (error) {
+		std::cout << " Small CONST OBJ ERROR \n \n ";
 		return;
 	}
 	void * blck = (void*)(((size_t)objp)&(~((size_t)BLOCK_SIZE - 1)));
 	slab_header * slab = (slab_header*)blck;
 
 	slab_destroy(slab);
+
+	buddy_dealloc(blck, slab->myCache->blockForSlab * BLOCK_SIZE);
+	slab->myCache = nullptr;
+}
+
+void cache_destroy(kmem_cache_t *cachep) {
+	kmem_cache_shrink(cachep);
+
+	if (cachep->slabs_partial != nullptr || cachep->slab_full != nullptr) {
+		cachep->error_code = CacheNotEmpry;
+		std::cout << " Kes nije prazan";
+		return;
+	}
+
+	if (cachep->next) cachep->next->priv = cachep->priv;
+	if (cachep->priv) cachep->priv->next = cachep->next;
+
+	if (BUDDY->cacheHead == cachep) BUDDY->cacheHead = cachep->next;
+	buddy_dealloc(cachep, cachep->numBlcoksForCache* BLOCK_SIZE);
 }
 
 void updateStats(kmem_cache_s* cache, int totalAloc, int  inUse, int numSlabs) {

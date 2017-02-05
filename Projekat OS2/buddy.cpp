@@ -20,11 +20,27 @@ void buddy_init(void *space, int block_num) {
 	BUDDY->numOfBlocks = block_num - numOfBlckforBuddy;
 	BUDDY->maxPower2 = roundDownpower2(block_num - numOfBlckforBuddy);
 //	BUDDY->blocks = (blocksP) ((char*)space + sizeof(buddy_s));
+
+	//Buddy will allocate blcoks from this adress
+	//Adress is corrected ti first BLCOK_SIZE bits bi 0
+
+	/*
 	BUDDY->myMemory = (char*)space + BLOCK_SIZE * numOfBlckforBuddy;
+	BUDDY->myMemory = (char*)BUDDY->myMemory + BLOCK_SIZE - 1;
+	size_t mask = BLOCK_SIZE - 1;
+	BUDDY->myMemory = (void *) (size_t)BUDDY->myMemory & ~mask;
+	*/
+
+	size_t mem = (size_t) ((char*)space + BLOCK_SIZE * numOfBlckforBuddy);
+	mem += BLOCK_SIZE - 1;
+	size_t mask = BLOCK_SIZE - 1;
+	mem &= ~mask;
+	BUDDY->myMemory = (void *)mem;
+
 	BUDDY->cacheHead = nullptr;
 
 	BUDDY->mutexLock = CreateMutex(NULL, false, NULL);
-
+	BUDDY->globalLock = CreateMutex(NULL, false, NULL);
 
 	//Init blocks list
 	for (int i = 0; i < BUDDY->maxPower2; i++) {

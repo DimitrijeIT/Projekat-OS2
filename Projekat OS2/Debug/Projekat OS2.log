@@ -1,2 +1,10 @@
-﻿  cache.cpp
+﻿  slab_header.cpp
+  slab.cpp
+  power2.cpp
+  cache.cpp
+  buddy.cpp
+  test.cpp
+  main.cpp
+c:\users\dimitrije\desktop\javni test os2\main.cpp(23): warning C4018: '<': signed/unsigned mismatch
+  Generating Code...
   Projekat OS2.vcxproj -> C:\Users\Dimitrije\Desktop\Projekat OS2 kod\Projekat OS2\Debug\Projekat OS2.exe

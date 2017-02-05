@@ -20,7 +20,7 @@ struct buddy_s {
 	kmem_cache_s* sizeNCaches[N];
 
 	HANDLE mutexLock;
-
+	HANDLE globalLock;
 };
 
 void buddy_init(void *space, int block_num);

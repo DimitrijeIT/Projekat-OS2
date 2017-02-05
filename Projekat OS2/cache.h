@@ -21,6 +21,7 @@ typedef struct kmem_cache_s {
 	int blockForSlab;
 	unsigned int nextOff;
 	unsigned int offset;
+	int numBlcoksForCache;
 
 	HANDLE mutexLock;
 
@@ -47,6 +48,7 @@ void *cache_alloc(kmem_cache_t *cachep);
 int cache_shrink(kmem_cache_t *cachep);
 void *small_buffer(size_t size);
 void small_buffer_destroy(const void *objp);
+void cache_destroy(kmem_cache_t *cachep);
 
 void updateStats(kmem_cache_s* cache, int totalAloc, int  inUse, int numSlabs);
 void allocSlab(kmem_cache_s* cache);

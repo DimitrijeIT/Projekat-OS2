@@ -48,11 +48,18 @@ void* slab_alloc(slab_header* slab) {
 
 	//Is slab full
 	if (slab->free == EOB) {
+		std::cout << "\n  EOB NADJEN ";
+		std::cout << "Obj u slabu " <<slab->objInUse << " Kes dozvolio " << slab->myCache->numObjInSlot;
+		return nullptr;
+	}
+
+	if (slab->free < 0) {
+		std::cout << " NEKAKO FREE MANJI OD NULE \n \n \n";
 		return nullptr;
 	}
 	
 	//Pointer to free object
-	void * obj = (char* )slab->mem + slab->free * slab->myCache->objectSize;
+	void * obj = (void * ) ((char* )slab->mem + slab->free * slab->myCache->objectSize);
 	int obj_index = slab->free;
 	slab->free = slab_buffer(slab)[slab->free];	
 	slab_buffer(slab)[obj_index] = ALLOCATED;
@@ -62,7 +69,8 @@ void* slab_alloc(slab_header* slab) {
 	slab->objInUse++;
 
 	if (old == 0) {
-		updateLists(FREE, PARTIAL, slab);
+		if(slab->objInUse != slab->myCache->numObjInSlot ) updateLists(FREE, PARTIAL, slab);
+		else updateLists(FREE, FULL, slab);
 	}
 	else if (slab->objInUse == slab->myCache->numObjInSlot) {
 		updateLists(PARTIAL, FULL, slab);
@@ -105,7 +113,8 @@ int put_obj(void *obj) {
 	int old = slab->objInUse;
 	slab->objInUse--;
 	if (slab->objInUse == 0) {
-		updateLists(PARTIAL, FREE, slab);
+		if(old != slab->myCache->numObjInSlot) updateLists(PARTIAL, FREE, slab);
+		else updateLists(FULL, FREE, slab);
 	}
 	else if (old == slab->myCache->numObjInSlot) {
 		updateLists(FULL,PARTIAL, slab);
@@ -135,7 +144,8 @@ int put_obj_const (const void *obj) {
 	int old = slab->objInUse;
 	slab->objInUse--;
 	if (slab->objInUse == 0) {
-		updateLists(PARTIAL, FREE, slab);
+		if (old != slab->myCache->numObjInSlot) updateLists(PARTIAL, FREE, slab);
+		else updateLists(FULL, FREE, slab);
 	}
 	else if (old == slab->myCache->numObjInSlot) {
 		updateLists(FULL, PARTIAL, slab);
@@ -164,6 +174,7 @@ void updateLists(slab_list FROM, slab_list TO, slab_header *slab) {
 	{
 	case FREE:
 		if (cache->slab_free == slab) cache->slab_free = slab->next;
+		std::cout << "Uklonio iz liste free \n \n ";
 		break;
 	case PARTIAL:
 		if (cache->slabs_partial == slab) cache->slabs_partial = slab->next;
@@ -202,12 +213,15 @@ void slab_destroy(slab_header* slab) {
 
 	//Remove from cache list
 	if (slab->objInUse == 0) {
+		std::cout << "\n \n U slabu svi slobodno ";
 		updateLists(FREE, NO, slab);
 	}
 	else if (slab->objInUse == slab->myCache->numObjInSlot) {
+		std::cout << " \n \n U slabu NISU svi slobodno ";
 		updateLists(FULL, NO, slab);
 	}
 	else {
+		std::cout << " \n \n U slabu NISU svi slobodno ";
 		updateLists(PARTIAL, NO, slab);
 	}
 
@@ -225,6 +239,6 @@ void slab_destroy(slab_header* slab) {
 	slab->mem = nullptr;
 	slab->free = EOB;
 	slab->objInUse = 0;
-	slab->myCache = nullptr;
+	//slab->myCache = nullptr;
 }
 

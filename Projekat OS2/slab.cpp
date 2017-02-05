@@ -41,11 +41,9 @@ int kmem_cache_shrink(kmem_cache_t *cachep) {
 }
 
 void kmem_cache_destroy(kmem_cache_t *cachep) {
-	kmem_cache_shrink(cachep);
-
-	if (cachep->slabs_partial != nullptr || cachep->slab_full != nullptr) {
-		cachep->error_code = CacheNotEmpry;
-	}
+	WaitForSingleObject(BUDDY->mutexLock, INFINITE);
+	cache_destroy(cachep);
+	ReleaseMutex(BUDDY->mutexLock);
 }
 
 void *kmalloc(size_t size) {
@@ -62,11 +60,12 @@ void kfree(const void *objp) {
 }
 
 void kmem_cache_info(kmem_cache_t *cachep){
-
 	WaitForSingleObject(cachep->mutexLock, INFINITE);
+	WaitForSingleObject(BUDDY->globalLock, INFINITE);
 	std::cout << "\n \n Name :" << cachep->name << "\n Object Size : " << cachep->objectSize << "\n Cache size in blocks : "
 		<< cachep->sizeInBlocks << "\n Num of slabs : " << cachep->numSlabs << "\n Num of object per slab : "
 		<< cachep->numObjInSlot << "\n Procenat popunjenosti : " << cachep->percentage;
+	ReleaseMutex(BUDDY->globalLock);
 	ReleaseMutex(cachep->mutexLock);
 }
 
