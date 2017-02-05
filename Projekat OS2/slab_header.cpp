@@ -219,6 +219,8 @@ void slab_destroy(slab_header* slab) {
 			obj = (void*)((char*)obj + slab->myCache->objectSize);
 		}
 	}
+
+	updateStats(slab->myCache, -(slab->myCache->numObjInSlot), 0, -1);
 	
 	slab->mem = nullptr;
 	slab->free = EOB;

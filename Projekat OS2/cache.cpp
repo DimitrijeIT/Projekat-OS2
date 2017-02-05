@@ -125,11 +125,10 @@ int cache_shrink(kmem_cache_t *cachep) {
 			cur = cur->next;
 
 			int numOfBlocks = tmp->myCache->blockForSlab;
-			slab_destroy(cur);
+			slab_destroy(cur); //Updates stats
 			buddy_dealloc(tmp, numOfBlocks);
 
 			cnt++;
-			updateStats(cachep, -(cachep->numObjInSlot), 0, -1);
 		}
 
 		cachep->slab_free = nullptr;
@@ -151,7 +150,7 @@ void *small_buffer(size_t size) {
 		//Create new cache
 		char name[20];
 		sprintf_s(name, sizeof(name), "size%d", pow);
-		BUDDY->sizeNCaches[pow - MIN_SIZE] = kmem_cache_create(name, pow * BLOCK_SIZE, nullptr, nullptr);
+		BUDDY->sizeNCaches[pow - MIN_SIZE] = cache_create(name, pow * BLOCK_SIZE, nullptr, nullptr);
 	}
 
 	//Allocate new slab for that size
@@ -176,7 +175,7 @@ void updateStats(kmem_cache_s* cache, int totalAloc, int  inUse, int numSlabs) {
 	cache->numTotalAloc += totalAloc;
 	cache->inUse += inUse;
 	cache->numSlabs += numSlabs;
-	cache->percentage = ((double)cache->numTotalAloc / cache->inUse) * 100;
+	cache->percentage = ((double)cache->inUse / cache->numTotalAloc) * 100;
 
 	if (numSlabs < 0) {
 		cache->sizeInBlocks -= cache->blockForSlab;
@@ -190,6 +189,8 @@ void allocSlab(kmem_cache_s* cache) {
 	//Allocate space from Buddy for one slab
 	void * mem = buddy_alloc(BLOCK_SIZE * cache->blockForSlab);
 	if (mem == nullptr) {
+		std::cout << "\n \n \n Buddy vratio null u allocSlab \n \n";
+
 		cache->error_code = BuddyNoSpace;
 		return;
 	}
