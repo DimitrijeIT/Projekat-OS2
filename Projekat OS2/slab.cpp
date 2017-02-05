@@ -19,7 +19,6 @@ kmem_cache_t *kmem_cache_create(const char *name, size_t size,
 }
 
 void *kmem_cache_alloc(kmem_cache_t *cachep) {
-	
 	WaitForSingleObject(cachep->mutexLock, INFINITE);
 	void * ret = cache_alloc(cachep);
 	ReleaseMutex(cachep->mutexLock);
@@ -33,7 +32,6 @@ void kmem_cache_free(kmem_cache_t *cachep, void *objp) {
 }
 
 int kmem_cache_shrink(kmem_cache_t *cachep) {
-	
 	WaitForSingleObject(cachep->mutexLock, INFINITE);
 	int ret = cache_shrink(cachep);
 	ReleaseMutex(cachep->mutexLock);
@@ -41,40 +39,34 @@ int kmem_cache_shrink(kmem_cache_t *cachep) {
 }
 
 void kmem_cache_destroy(kmem_cache_t *cachep) {
-	WaitForSingleObject(BUDDY->mutexLock, INFINITE);
 	cache_destroy(cachep);
-	ReleaseMutex(BUDDY->mutexLock);
 }
 
 void *kmalloc(size_t size) {
-	WaitForSingleObject(BUDDY->mutexLock, INFINITE);
-	void * ret =  small_buffer(size);
-	ReleaseMutex(BUDDY->mutexLock);
-	return ret;
+	return small_buffer(size);
 }
 
 void kfree(const void *objp) {
-	WaitForSingleObject(BUDDY->mutexLock, INFINITE);
 	small_buffer_destroy(objp);
-	ReleaseMutex(BUDDY->mutexLock);
 }
 
 void kmem_cache_info(kmem_cache_t *cachep){
 	WaitForSingleObject(cachep->mutexLock, INFINITE);
 	WaitForSingleObject(BUDDY->globalLock, INFINITE);
-	std::cout << "\n \n Name :" << cachep->name << "\n Object Size : " << cachep->objectSize << "\n Cache size in blocks : "
-		<< cachep->sizeInBlocks << "\n Num of slabs : " << cachep->numSlabs << "\n Num of object per slab : "
-		<< cachep->numObjInSlot << "\n Procenat popunjenosti : " << cachep->percentage;
+	std::cout << "\n \n Name			: " << cachep->name << "\n Object Size		: " << cachep->objectSize << "\n Cache size in blocks	: "
+		<< cachep->sizeInBlocks << "\n Num of slabs		: " << cachep->numSlabs << "\n Num of object per slab	: "
+		<< cachep->numObjInSlot << "\n Procenat popunjenosti	: " << cachep->percentage << "\n";
 	ReleaseMutex(BUDDY->globalLock);
 	ReleaseMutex(cachep->mutexLock);
 }
 
 int kmem_cache_error(kmem_cache_t *cachep) {
 	if (cachep == nullptr) {
-		std::cout << "cachep: is not nullptr";
+		std::cout << "cachep: is nullptr";
 		return NoCache;
 	}
 
+	WaitForSingleObject(cachep->mutexLock, INFINITE);
 	switch (cachep->error_code) {
 		case NoErros: 
 			std::cout << "No errors";
@@ -89,6 +81,7 @@ int kmem_cache_error(kmem_cache_t *cachep) {
 			std::cout << "Unknown error";
 			break;
 	}
+	ReleaseMutex(cachep->mutexLock);
 	return cachep->error_code;
 }
 

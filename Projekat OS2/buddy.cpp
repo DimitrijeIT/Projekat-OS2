@@ -2,6 +2,8 @@
 #include <iostream>
 #include "power2.h"
 #include "slab.h"
+//All functions are thread safe
+#define EOB -1
 
 buddy_s* BUDDY = nullptr;
 
@@ -16,21 +18,12 @@ void buddy_init(void *space, int block_num) {
 
 	int numOfBlckforBuddy = (sizeof(buddy_s) + sizeof(blocksP) * roundDownpower2(block_num))/BLOCK_SIZE;
 	if (numOfBlckforBuddy == 0) numOfBlckforBuddy = 1;
-
 	BUDDY->numOfBlocks = block_num - numOfBlckforBuddy;
+
 	BUDDY->maxPower2 = roundDownpower2(block_num - numOfBlckforBuddy);
-//	BUDDY->blocks = (blocksP) ((char*)space + sizeof(buddy_s));
 
-	//Buddy will allocate blcoks from this adress
-	//Adress is corrected ti first BLCOK_SIZE bits bi 0
-
-	/*
-	BUDDY->myMemory = (char*)space + BLOCK_SIZE * numOfBlckforBuddy;
-	BUDDY->myMemory = (char*)BUDDY->myMemory + BLOCK_SIZE - 1;
-	size_t mask = BLOCK_SIZE - 1;
-	BUDDY->myMemory = (void *) (size_t)BUDDY->myMemory & ~mask;
-	*/
-
+	//Buddy will allocate blocks from this adress
+	//Adress is corrected = first BLOCK_SIZE bits are 0
 	size_t mem = (size_t) ((char*)space + BLOCK_SIZE * numOfBlckforBuddy);
 	mem += BLOCK_SIZE - 1;
 	size_t mask = BLOCK_SIZE - 1;
@@ -44,10 +37,10 @@ void buddy_init(void *space, int block_num) {
 
 	//Init blocks list
 	for (int i = 0; i < BUDDY->maxPower2; i++) {
-		buddy_blocks(BUDDY)[i] = -1;
+		buddy_blocks(BUDDY)[i] = EOB;
 	}
 	buddy_blocks(BUDDY)[BUDDY->maxPower2] = 0;
-	*((int*)blockByIndex(0)) = -1;
+	*((int*)blockByIndex(0)) = EOB;
 
 	//Init array of Size-N caches
 	for (int i = 0; i <N; i++) {
@@ -57,8 +50,7 @@ void buddy_init(void *space, int block_num) {
 
 void* buddy_alloc(int size) {
 
-	int num_of_blc = size / BLOCK_SIZE;
-
+	int num_of_blc = size % BLOCK_SIZE == 0 ? size / BLOCK_SIZE : size / BLOCK_SIZE + 1;
 	int index = roundUPpower2(num_of_blc);
 	if (index > BUDDY->maxPower2) return nullptr;
 
@@ -88,19 +80,18 @@ void* buddy_alloc(int size) {
 			//Move pointer to next in list
 			buddy_blocks(BUDDY)[i + index] = *((int*)blockAdr);
 		
-			int oldNum = buddy_blocks(BUDDY)[i + index - 1];
-
-			//int newSize = (i + index) / 2;
 			int newIndex = i + index - 1;
-
+			int oldNum = buddy_blocks(BUDDY)[newIndex];
+			
 			//In smaller list update pointer to current block
 			buddy_blocks(BUDDY)[newIndex] = blockNum;
 		
 			//Update point in block to point to new buddy
+			//adr - adress of new buddy
 			char * adr = (char*)blockAdr + BLOCK_SIZE * toPower2(newIndex);
 			int a = IndexOfBlock(adr);
 			*((int*)blockAdr) = a;
-			//New buddy to point to new in list
+			//New buddy to point to old in list
 			*((int*)adr) = oldNum;
 		}
 		//New block for alloc
@@ -165,8 +156,7 @@ void buddy_dealloc(void *adr, int size_) {
 			}
 			if ((char*)cur_block_adress + toPower2(cur_index) * BLOCK_SIZE == adress) {
 				//Swap places
-				*(int*)adress = -1; //Not nessesery 
-
+				*(int*)adress = -1;
 				adress = cur_block_adress;
 				chunck_num = cur_num;
 				break;
@@ -174,15 +164,14 @@ void buddy_dealloc(void *adr, int size_) {
 			//Go to next in list 
 			prev_num = cur_num;
 			cur_num = *(int*)cur_block_adress;
-		}
+		}//While(cur_num != -1)
 
 		if (cur_num == -1) again = false;
 		else {	
-
 			//Update current list 
 			if (prev_num != -1) {
 				*(int*)blockByIndex(prev_num) = *(int*)blockByIndex(cur_num);
-				//Must remove first in list. It is the one we just inserted
+				//Must remove first in the list. It is the one we just have inserted
 				buddy_blocks(BUDDY)[cur_index] = *(int*)blockByIndex(buddy_blocks(BUDDY)[cur_index]);
 			}
 			else {
@@ -207,18 +196,21 @@ void buddy_dealloc(void *adr, int size_) {
 
 void destroyBuddy() {
 	if (BUDDY != nullptr) {
-	//	buddy_blocks(BUDDY) = -1;
+
+		//Destroy sizeN caches
+		for (int i = 0; i < N; i++) {
+			kmem_cache_destroy(BUDDY->sizeNCaches[i]);
+			BUDDY->sizeNCaches[i] = nullptr;
+		}
+
 		BUDDY->cacheHead = nullptr;
 		BUDDY->myMemory = nullptr;
 
 		BUDDY->maxPower2 = 0;
 		BUDDY->numOfBlocks = 0;
 
-		for (int i = 0; i < N; i++) {
-			BUDDY->sizeNCaches[i] = nullptr;
-		}
-
 		CloseHandle(BUDDY->mutexLock);
+		CloseHandle(BUDDY->globalLock);
 	}
 
 	BUDDY = nullptr;

@@ -2,10 +2,13 @@
 #include "slab_header.h"
 #include "slab.h"
 #include "cache.h"
+#include "buddy.h"
 #include <iostream>
 
 #define EOB -1
 #define ALLOCATED -2
+
+extern buddy_s* BUDDY;
 
 void slab_heder_init(void* space, kmem_cache_s* cache) {
 
@@ -13,7 +16,7 @@ void slab_heder_init(void* space, kmem_cache_s* cache) {
 	slab->myCache = cache;
 	
 	//Where memory for obj starts, offsetted for L1 cache line size
-	slab->mem = (char*)space + cache->numObjInSlot * sizeof(buffer) + sizeof(slab_header) + cache->nextOff;
+	slab->mem = (char*)space + sizeof(slab_header)  + cache->numObjInSlot * sizeof(buffer)  + cache->nextOff;
 
 	cache->nextOff = cache->nextOff + CACHE_L1_LINE_SIZE > cache->offset ? 0 : cache->nextOff + CACHE_L1_LINE_SIZE;
 
@@ -48,13 +51,6 @@ void* slab_alloc(slab_header* slab) {
 
 	//Is slab full
 	if (slab->free == EOB) {
-		std::cout << "\n  EOB NADJEN ";
-		std::cout << "Obj u slabu " <<slab->objInUse << " Kes dozvolio " << slab->myCache->numObjInSlot;
-		return nullptr;
-	}
-
-	if (slab->free < 0) {
-		std::cout << " NEKAKO FREE MANJI OD NULE \n \n \n";
 		return nullptr;
 	}
 	
@@ -153,17 +149,7 @@ int put_obj_const (const void *obj) {
 	updateStats(slab->myCache, 0, -1, 0);
 	return 0;
 }
-/*void updateLists(slab_header *from, slab_header *to, slab_header *slab) {
-	if (slab->next) slab->next->priv = slab->priv;
-	if (slab->priv) slab->priv->next = slab->next;
-	if (from != nullptr && from == slab) from = slab->next;
 
-	slab->next = to;
-	if (to != nullptr) to->priv = slab;
-	to = slab;
-	slab->priv = nullptr;
-}
-*/
 void updateLists(slab_list FROM, slab_list TO, slab_header *slab) {
 	if (slab->next) slab->next->priv = slab->priv;
 	if (slab->priv) slab->priv->next = slab->next;
@@ -174,7 +160,6 @@ void updateLists(slab_list FROM, slab_list TO, slab_header *slab) {
 	{
 	case FREE:
 		if (cache->slab_free == slab) cache->slab_free = slab->next;
-		std::cout << "Uklonio iz liste free \n \n ";
 		break;
 	case PARTIAL:
 		if (cache->slabs_partial == slab) cache->slabs_partial = slab->next;
@@ -213,15 +198,12 @@ void slab_destroy(slab_header* slab) {
 
 	//Remove from cache list
 	if (slab->objInUse == 0) {
-		std::cout << "\n \n U slabu svi slobodno ";
 		updateLists(FREE, NO, slab);
 	}
 	else if (slab->objInUse == slab->myCache->numObjInSlot) {
-		std::cout << " \n \n U slabu NISU svi slobodno ";
 		updateLists(FULL, NO, slab);
 	}
 	else {
-		std::cout << " \n \n U slabu NISU svi slobodno ";
 		updateLists(PARTIAL, NO, slab);
 	}
 
@@ -239,6 +221,10 @@ void slab_destroy(slab_header* slab) {
 	slab->mem = nullptr;
 	slab->free = EOB;
 	slab->objInUse = 0;
-	//slab->myCache = nullptr;
+
+	kmem_cache_s* cache = slab->myCache;
+	slab->myCache = nullptr;
+	buddy_dealloc(slab, cache->blockForSlab * BLOCK_SIZE);
+	
 }
 

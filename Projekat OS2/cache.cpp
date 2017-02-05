@@ -54,12 +54,6 @@ kmem_cache_t *cache_create(const char *name, size_t size,
 
 	//Init struct
 
-	//Add to list of caches
-	cache_s->priv = nullptr;
-	cache_s->next = BUDDY->cacheHead;
-	if (cache_s->next)cache_s->next->priv = cache_s;
-	BUDDY->cacheHead = cache_s;
-
 	//Init list of slabs 
 	cache_s->slabs_partial = nullptr;
 	cache_s->slab_free = nullptr;
@@ -90,6 +84,17 @@ kmem_cache_t *cache_create(const char *name, size_t size,
 	cache_s->error_code = NoErros;
 
 	strncpy_s(cache_s->name, name, NAME_LEN);
+
+	//Add to list of caches
+	WaitForSingleObject(BUDDY->mutexLock, INFINITE);
+
+	cache_s->priv = nullptr;
+	cache_s->next = BUDDY->cacheHead;
+	if (cache_s->next)cache_s->next->priv = cache_s;
+	BUDDY->cacheHead = cache_s;
+
+	ReleaseMutex(BUDDY->mutexLock);
+
 	return cache_s;
 }
 
@@ -122,14 +127,10 @@ int cache_shrink(kmem_cache_t *cachep) {
 
 		//Go through list of free slabs and dealloc slabs
 		int cnt = 0;
-		for (slab_header* cur = cachep->slab_free, *tmp = nullptr; cur != nullptr; ) {
+		for (slab_header* cur = cachep->slab_free,*tmp = nullptr; cur != nullptr; ) {
 			tmp = cur;
 			cur = cur->next;
-
-			int numOfBlocks = tmp->myCache->blockForSlab;
-			slab_destroy(cur); //Updates stats
-			buddy_dealloc(tmp, numOfBlocks);
-
+			slab_destroy(tmp); //Updates stats, dealocates space
 			cnt++;
 		}
 
@@ -142,56 +143,62 @@ int cache_shrink(kmem_cache_t *cachep) {
 }
 
 void *small_buffer(size_t size) {
-
 	//Check for size 
 	int pow = roundUPpower2(size);
 	if (pow > MAX_SIZE) return nullptr;
 	if (pow < MIN_SIZE) pow = MIN_SIZE;
 
+	WaitForSingleObject(BUDDY->mutexLock, INFINITE);
 	if (BUDDY->sizeNCaches[pow - MIN_SIZE] == nullptr) {
 		//Create new cache
 		char name[20];
 		sprintf_s(name, sizeof(name), "size%d", pow);
 		BUDDY->sizeNCaches[pow - MIN_SIZE] = cache_create(name, pow * BLOCK_SIZE, nullptr, nullptr);
 	}
+	ReleaseMutex(BUDDY->mutexLock);
 
-	std::cout << " Small buffer, blokova za slab" << BUDDY->sizeNCaches[pow - MIN_SIZE]->blockForSlab;
-	std::cout << " Trazi blokova " << pow;
-	
+	WaitForSingleObject(BUDDY->sizeNCaches[pow - MIN_SIZE]->mutexLock, INFINITE);
 	//Allocate new slab for that size
 	void * ret = cache_alloc(BUDDY->sizeNCaches[pow - MIN_SIZE]);
+	ReleaseMutex(BUDDY->sizeNCaches[pow - MIN_SIZE]->mutexLock);
 	return ret;
 }
 
 void small_buffer_destroy(const void *objp) {
-
-	int error = put_obj_const(objp);
-	if (error) {
-		std::cout << " Small CONST OBJ ERROR \n \n ";
-		return;
-	}
+	//Find slab that object belongs to 
 	void * blck = (void*)(((size_t)objp)&(~((size_t)BLOCK_SIZE - 1)));
 	slab_header * slab = (slab_header*)blck;
 
-	slab_destroy(slab);
+	kmem_cache_s * cache = slab->myCache;
+	WaitForSingleObject(cache->mutexLock, INFINITE);
 
-	buddy_dealloc(blck, slab->myCache->blockForSlab * BLOCK_SIZE);
-	slab->myCache = nullptr;
+	int error = put_obj_const(objp);
+	// put_obj_const returns -1 if obj is not allocated
+	if (error) {
+		ReleaseMutex(cache->mutexLock);
+		return;
+	}
+	slab_destroy(slab);
+	ReleaseMutex(cache->mutexLock);
 }
 
 void cache_destroy(kmem_cache_t *cachep) {
-	kmem_cache_shrink(cachep);
+	if (cachep == nullptr) return;
+
+	kmem_cache_shrink(cachep); //Thread safe
 
 	if (cachep->slabs_partial != nullptr || cachep->slab_full != nullptr) {
 		cachep->error_code = CacheNotEmpry;
-		std::cout << " Kes nije prazan";
 		return;
 	}
 
+	//Update buddy cache list
+	WaitForSingleObject(BUDDY->mutexLock, INFINITE);
 	if (cachep->next) cachep->next->priv = cachep->priv;
 	if (cachep->priv) cachep->priv->next = cachep->next;
-
 	if (BUDDY->cacheHead == cachep) BUDDY->cacheHead = cachep->next;
+	ReleaseMutex(BUDDY->mutexLock);
+
 	buddy_dealloc(cachep, cachep->numBlcoksForCache* BLOCK_SIZE);
 }
 
